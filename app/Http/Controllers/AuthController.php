@@ -11,7 +11,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
 
-    public function register(Request $request)
+    public function registerProduct(Request $request)
     {
 
         $validator = Validator::make($request->all(), [
