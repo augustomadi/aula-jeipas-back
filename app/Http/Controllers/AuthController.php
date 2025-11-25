@@ -11,14 +11,13 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
 
-    public function registerProduct(Request $request)
+    public function registerUser(Request $request)
     {
 
         $validator = Validator::make($request->all(), [
-
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|confirmed|string|min:8',
+            'password' => 'required|string|min:8',
         ]);
 
         if ($validator->fails()) {
@@ -28,7 +27,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => $request->password, // O model já faz hash automaticamente devido ao cast 'hashed'
         ]);
 
         $token = JWTAuth::fromUser($user);
@@ -42,9 +41,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-
-        $credentials = $request->only('email', 'password');
-
         $validator = Validator::make($request->all(), [
             'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8',
@@ -54,17 +50,36 @@ class AuthController extends Controller
             return response()->json(['error' => $validator->errors()], 422);
         }
 
-        if (!$token = JWTAuth::attempt($credentials)) {
+        $credentials = $request->only('email', 'password');
+
+        // Verifica se o usuário existe
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (!$user) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
-        // Se o token foi gerado com sucesso, o usuário existe e está autenticado
-        $user = JWTAuth::user();
+        // Verifica a senha manualmente porque o cast 'hashed' pode interferir
+        if (!Hash::check($credentials['password'], $user->password)) {
+            return response()->json(['error' => 'Invalid credentials'], 401);
+        }
+
+        // Gera o token JWT
+        $token = JWTAuth::fromUser($user);
 
         return response()->json([
             'message' => 'Login successful',
             'user' => $user,
             'token' => $token,
+        ], 200);
+    }
+
+    public function returnUser() 
+    { 
+        $users = User::all();
+
+        return response()->json([
+            'users' => $users,
         ], 200);
     }
 }
